@@ -302,15 +302,6 @@ Total Issues: 1 malware detected
    - [WEB] https://www.wiz.io/blog/shai-hulud-npm-supply-chain-attack
 ```
 
-## 🆚 Why OSV.dev?
-
-| Feature | OSV.dev | GitHub Advisory | Socket.dev |
-|---------|---------|-----------------|------------|
-| Cost | ✅ FREE | ✅ FREE | 💰 Paid tiers |
-| API Key | ❌ Not needed | ✅ Required | ✅ Required |
-| Malware DB | ✅ Comprehensive | ✅ Good | ✅ Excellent |
-| CVE Coverage | ✅ Excellent | ✅ Excellent | ⚠️ Limited |
-| Batch Queries | ✅ Yes | ❌ No | ✅ Yes |
 
 ## 🛠️ Integration Examples
 
