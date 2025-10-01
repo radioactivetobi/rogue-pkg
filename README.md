@@ -303,7 +303,7 @@ Total Issues: 1 malware detected
 ```
 
 
-## 🛠️ Integration Examples
+##  Integration Examples
 
 ### Pre-commit Hook
 
