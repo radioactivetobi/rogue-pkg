@@ -15,7 +15,7 @@ on:
       - '**/package-lock.json'
       - '**/yarn.lock'
   
-  # Trigger on pull requests
+  # Trigger on pull requests to the below branches
   pull_request:
     branches:
       - main
