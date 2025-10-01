@@ -1,5 +1,5 @@
 name: 'RoguePkg - Malware & Vulnerability Scanner'
-description: 'Detect malicious npm packages and vulnerabilities using the free OSV.dev database. Perfect for supply chain security in CI/CD pipelines. Future support for PyPI, Maven, and more.'
+description: 'Detect malicious npm packages and vulnerabilities using the OSV.dev database. Future support for PyPI, Maven, and more.'
 author: 'radioactivetobi'
 
 branding:
