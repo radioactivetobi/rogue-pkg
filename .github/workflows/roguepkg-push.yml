@@ -24,9 +24,47 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Run OSV Malware Scanner
+        id: osv-scan
         uses: radioactivetobi/roguepkg@v1  # Or use ./ for local testing
         with:
           scan-path: '.'
           malware-only: 'true'
-          fail-on-malware: 'true'
+          fail-on-malware: 'false'
+      
+      - name: Generate Summary
+        if: always()
+        run: |
+          MALWARE_FOUND="${{ steps.osv-scan.outputs.malware-found }}"
+          TOTAL_SCANNED="${{ steps.osv-scan.outputs.total-scanned }}"
+          SCAN_STATUS="${{ steps.osv-scan.outputs.scan-status }}"
+          
+          # Default to 0 if empty
+          MALWARE_FOUND=${MALWARE_FOUND:-0}
+          TOTAL_SCANNED=${TOTAL_SCANNED:-0}
+          SCAN_STATUS=${SCAN_STATUS:-unknown}
+          
+          echo "# 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Packages | $TOTAL_SCANNED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦠 Malware | $MALWARE_FOUND |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $SCAN_STATUS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$MALWARE_FOUND" -gt 0 ] 2>/dev/null; then
+            echo "## 🚨 Malware Detected!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**$MALWARE_FOUND** package(s) contain malware." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ All Clear!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No malware detected." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail if malware detected
+        if: steps.osv-scan.outputs.malware-found > 0
+        run: |
+          echo "❌ Failing workflow: Malware detected in ${{ steps.osv-scan.outputs.malware-found }} package(s)"
+          exit 1
 

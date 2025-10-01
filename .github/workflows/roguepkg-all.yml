@@ -105,9 +105,8 @@ jobs:
         with:
           scan-path: ${{ steps.config.outputs.scan-path }}
           malware-only: ${{ steps.config.outputs.malware-only }}
-          fail-on-malware: 'true'
-          fail-on-vulnerability: ${{ steps.config.outputs.fail-on-vuln }}
-        continue-on-error: true
+          fail-on-malware: 'false'
+          fail-on-vulnerability: 'false'
       
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -228,41 +227,77 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
+          # Set defaults for empty outputs
+          TOTAL_SCANNED="${{ steps.scan.outputs.total-scanned }}"
+          MALWARE_FOUND="${{ steps.scan.outputs.malware-found }}"
+          VULN_FOUND="${{ steps.scan.outputs.vulnerabilities-found }}"
+          SCAN_STATUS="${{ steps.scan.outputs.scan-status }}"
+          SCAN_OUTCOME="${{ steps.scan.outcome }}"
+          
+          # Default to 0 if empty
+          TOTAL_SCANNED=${TOTAL_SCANNED:-0}
+          MALWARE_FOUND=${MALWARE_FOUND:-0}
+          VULN_FOUND=${VULN_FOUND:-0}
+          SCAN_STATUS=${SCAN_STATUS:-unknown}
+          
           echo "# 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Scan Type:** ${{ steps.config.outputs.scan-name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered By:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Scan Path:** ${{ steps.config.outputs.scan-path }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Step Outcome:** $SCAN_OUTCOME" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Total Packages | ${{ steps.scan.outputs.total-scanned }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🦠 Malware | ${{ steps.scan.outputs.malware-found }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⚠️  Vulnerabilities | ${{ steps.scan.outputs.vulnerabilities-found }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | ${{ steps.scan.outputs.scan-status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Packages | $TOTAL_SCANNED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦠 Malware | $MALWARE_FOUND |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚠️  Vulnerabilities | $VULN_FOUND |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $SCAN_STATUS |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ steps.scan.outputs.malware-found }}" -gt 0 ]; then
+          if [ "$MALWARE_FOUND" -gt 0 ] 2>/dev/null; then
             echo "## 🚨 Malware Detected!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**${{ steps.scan.outputs.malware-found }}** package(s) contain malware. Review the logs above for details." >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.scan.outputs.vulnerabilities-found }}" -gt 0 ]; then
+            echo "**$MALWARE_FOUND** package(s) contain malware. Review the logs above for details." >> $GITHUB_STEP_SUMMARY
+          elif [ "$VULN_FOUND" -gt 0 ] 2>/dev/null; then
             echo "## ⚠️ Vulnerabilities Found" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**${{ steps.scan.outputs.vulnerabilities-found }}** vulnerable package(s) detected. Consider updating." >> $GITHUB_STEP_SUMMARY
-          else
+            echo "**$VULN_FOUND** vulnerable package(s) detected. Consider updating." >> $GITHUB_STEP_SUMMARY
+          elif [ "$SCAN_STATUS" = "clean" ]; then
             echo "## ✅ All Clear!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "No security issues detected in scanned dependencies." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Scan Issue" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The scan may have encountered an error. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
           fi
       
       - name: Fail workflow if critical issues found
-        if: |
-          steps.scan.outputs.malware-found > 0 ||
-          (steps.config.outputs.fail-on-vuln == 'true' && steps.scan.outputs.vulnerabilities-found > 0)
         run: |
-          echo "❌ Security scan failed due to critical issues"
-          exit 1
+          MALWARE_FOUND="${{ steps.scan.outputs.malware-found }}"
+          VULN_FOUND="${{ steps.scan.outputs.vulnerabilities-found }}"
+          FAIL_ON_VULN="${{ steps.config.outputs.fail-on-vuln }}"
+          
+          # Default to 0 if empty
+          MALWARE_FOUND=${MALWARE_FOUND:-0}
+          VULN_FOUND=${VULN_FOUND:-0}
+          
+          echo "📊 Final Check:"
+          echo "  Malware found: $MALWARE_FOUND"
+          echo "  Vulnerabilities found: $VULN_FOUND"
+          echo "  Fail on vulnerabilities: $FAIL_ON_VULN"
+          
+          if [ "$MALWARE_FOUND" -gt 0 ]; then
+            echo "❌ Failing workflow: Malware detected in $MALWARE_FOUND package(s)"
+            exit 1
+          elif [ "$FAIL_ON_VULN" = "true" ] && [ "$VULN_FOUND" -gt 0 ]; then
+            echo "❌ Failing workflow: Vulnerabilities detected in $VULN_FOUND package(s)"
+            exit 1
+          else
+            echo "✅ No critical issues found, workflow passes"
+            exit 0
+          fi
 

@@ -25,18 +25,48 @@ jobs:
         with:
           scan-path: '.'
           malware-only: 'false' # Full scan including all vulnerabilities
-          fail-on-malware: 'true'
-          fail-on-vulnerability: 'false' # Don't fail on regular CVEs
-        continue-on-error: true
+          fail-on-malware: 'false'
+          fail-on-vulnerability: 'false'
+      
+      - name: Generate Summary
+        if: always()
+        run: |
+          MALWARE_FOUND="${{ steps.osv-scan.outputs.malware-found }}"
+          VULN_FOUND="${{ steps.osv-scan.outputs.vulnerabilities-found }}"
+          TOTAL_SCANNED="${{ steps.osv-scan.outputs.total-scanned }}"
+          
+          # Default to 0 if empty
+          MALWARE_FOUND=${MALWARE_FOUND:-0}
+          VULN_FOUND=${VULN_FOUND:-0}
+          TOTAL_SCANNED=${TOTAL_SCANNED:-0}
+          
+          echo "# 🛡️ Weekly Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Packages | $TOTAL_SCANNED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦠 Malware | $MALWARE_FOUND |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚠️  Vulnerabilities | $VULN_FOUND |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$MALWARE_FOUND" -gt 0 ] 2>/dev/null; then
+            echo "## 🚨 CRITICAL: Malware Detected!" >> $GITHUB_STEP_SUMMARY
+            echo "An issue will be created automatically." >> $GITHUB_STEP_SUMMARY
+          elif [ "$VULN_FOUND" -gt 0 ] 2>/dev/null; then
+            echo "## ⚠️ Vulnerabilities Found" >> $GITHUB_STEP_SUMMARY
+            echo "Review and update recommended." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ All Clear!" >> $GITHUB_STEP_SUMMARY
+          fi
       
       - name: Create Issue if Malware Found
         if: steps.osv-scan.outputs.malware-found > 0
         uses: actions/github-script@v7
         with:
           script: |
-            const malwareCount = '${{ steps.osv-scan.outputs.malware-found }}';
-            const vulnCount = '${{ steps.osv-scan.outputs.vulnerabilities-found }}';
-            const totalScanned = '${{ steps.osv-scan.outputs.total-scanned }}';
+            const malwareCount = '${{ steps.osv-scan.outputs.malware-found }}' || '0';
+            const vulnCount = '${{ steps.osv-scan.outputs.vulnerabilities-found }}' || '0';
+            const totalScanned = '${{ steps.osv-scan.outputs.total-scanned }}' || '0';
             
             const issueBody = `## 🚨 Weekly Security Scan Alert
             
@@ -63,8 +93,14 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 Security Alert: Malware Detected in Dependencies`,
+              title: `🚨 Security Alert: Malware Detected in Dependencies - ${new Date().toISOString().split('T')[0]}`,
               body: issueBody,
               labels: ['security', 'malware', 'dependencies']
             });
+      
+      - name: Fail workflow if malware detected
+        if: steps.osv-scan.outputs.malware-found > 0
+        run: |
+          echo "❌ Failing workflow: Malware detected in ${{ steps.osv-scan.outputs.malware-found }} package(s)"
+          exit 1
 
