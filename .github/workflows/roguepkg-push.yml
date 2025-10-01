@@ -1,0 +1,32 @@
+name: 'OSV Security Scan on Push'
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/yarn.lock'
+
+permissions:
+  contents: read
+
+jobs:
+  malware-scan:
+    name: 'Scan for Malware'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run OSV Malware Scanner
+        uses: radioactivetobi/roguepkg@v1  # Or use ./ for local testing
+        with:
+          scan-path: '.'
+          malware-only: 'true'
+          fail-on-malware: 'true'
+

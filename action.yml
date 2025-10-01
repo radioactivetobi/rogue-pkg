@@ -1,0 +1,179 @@
+name: 'RoguePkg - Malware & Vulnerability Scanner'
+description: 'Detect malicious npm packages and vulnerabilities using the free OSV.dev database. Perfect for supply chain security in CI/CD pipelines. Future support for PyPI, Maven, and more.'
+author: 'radioactivetobi'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  scan-path:
+    description: 'Path to scan (directory or specific file like package.json, package-lock.json, yarn.lock)'
+    required: false
+    default: '.'
+  
+  malware-only:
+    description: 'Only report malware, skip regular vulnerabilities (faster, recommended for CI)'
+    required: false
+    default: 'true'
+  
+  fail-on-malware:
+    description: 'Fail the workflow if malware is detected'
+    required: false
+    default: 'true'
+  
+  fail-on-vulnerability:
+    description: 'Fail the workflow if any vulnerability is detected (only applies when malware-only is false)'
+    required: false
+    default: 'false'
+
+outputs:
+  malware-found:
+    description: 'Number of packages with malware detected'
+  
+  vulnerabilities-found:
+    description: 'Number of packages with vulnerabilities (excluding malware)'
+  
+  total-scanned:
+    description: 'Total number of packages scanned'
+  
+  scan-status:
+    description: 'Overall scan status: clean, malware-detected, or vulnerabilities-detected'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+    
+      - name: Run OSV Scanner
+      shell: bash
+      id: scan
+      run: |
+        set +e  # Don't exit on error, we'll handle it ourselves
+        
+        SCRIPT_DIR="${{ github.action_path }}"
+        SCAN_PATH="${{ inputs.scan-path }}"
+        MALWARE_ONLY="${{ inputs.malware-only }}"
+        
+        echo "🔍 Starting OSV.dev security scan..."
+        echo "📂 Scan path: $SCAN_PATH"
+        echo "🦠 Malware-only mode: $MALWARE_ONLY"
+        echo ""
+        
+        # Build command
+        CMD="python \"$SCRIPT_DIR/roguepkg.py\""
+        
+        # Determine if scanning a file or directory
+        if [ -f "$SCAN_PATH" ]; then
+          echo "Scanning file: $SCAN_PATH"
+          CMD="$CMD --file \"$SCAN_PATH\" --batch"
+        elif [ -d "$SCAN_PATH" ]; then
+          echo "Scanning directory: $SCAN_PATH"
+          CMD="$CMD --scan-dir \"$SCAN_PATH\""
+        else
+          echo "❌ Error: Path not found: $SCAN_PATH"
+          exit 1
+        fi
+        
+        # Add malware-only flag if enabled
+        if [ "$MALWARE_ONLY" = "true" ]; then
+          CMD="$CMD --malware-only"
+        fi
+        
+        # Create temp file for output
+        OUTPUT_FILE=$(mktemp)
+        
+        # Run the scanner and capture output
+        eval $CMD 2>&1 | tee "$OUTPUT_FILE"
+        SCAN_EXIT_CODE=${PIPESTATUS[0]}
+        
+        # Parse output for statistics
+        MALWARE_COUNT=0
+        VULN_COUNT=0
+        TOTAL_SCANNED=0
+        
+        # Extract malware count
+        if grep -q "MALWARE DETECTED" "$OUTPUT_FILE"; then
+          MALWARE_LINE=$(grep "MALWARE DETECTED" "$OUTPUT_FILE" | tail -1)
+          if [[ $MALWARE_LINE =~ \(([0-9]+)\ packages\) ]]; then
+            MALWARE_COUNT="${BASH_REMATCH[1]}"
+          fi
+        fi
+        
+        # Extract vulnerability count (if not malware-only mode)
+        if [ "$MALWARE_ONLY" != "true" ]; then
+          if grep -q "CRITICAL VULNERABILITIES" "$OUTPUT_FILE"; then
+            CRITICAL_LINE=$(grep "CRITICAL VULNERABILITIES" "$OUTPUT_FILE" | tail -1)
+            if [[ $CRITICAL_LINE =~ \(([0-9]+)\ packages\) ]]; then
+              VULN_COUNT="${BASH_REMATCH[1]}"
+            fi
+          fi
+          
+          if grep -q "OTHER VULNERABILITIES" "$OUTPUT_FILE"; then
+            OTHER_LINE=$(grep "OTHER VULNERABILITIES" "$OUTPUT_FILE" | tail -1)
+            if [[ $OTHER_LINE =~ \(([0-9]+)\ packages\) ]]; then
+              VULN_COUNT=$((VULN_COUNT + ${BASH_REMATCH[1]}))
+            fi
+          fi
+        fi
+        
+        # Extract total scanned
+        if grep -q "Total packages scanned:" "$OUTPUT_FILE"; then
+          TOTAL_LINE=$(grep "Total packages scanned:" "$OUTPUT_FILE" | tail -1)
+          if [[ $TOTAL_LINE =~ Total\ packages\ scanned:\ ([0-9]+) ]]; then
+            TOTAL_SCANNED="${BASH_REMATCH[1]}"
+          fi
+        fi
+        
+        # Set outputs
+        echo "malware-found=$MALWARE_COUNT" >> $GITHUB_OUTPUT
+        echo "vulnerabilities-found=$VULN_COUNT" >> $GITHUB_OUTPUT
+        echo "total-scanned=$TOTAL_SCANNED" >> $GITHUB_OUTPUT
+        
+        # Determine status
+        if [ "$MALWARE_COUNT" -gt 0 ]; then
+          echo "scan-status=malware-detected" >> $GITHUB_OUTPUT
+          STATUS="malware-detected"
+        elif [ "$VULN_COUNT" -gt 0 ]; then
+          echo "scan-status=vulnerabilities-detected" >> $GITHUB_OUTPUT
+          STATUS="vulnerabilities-detected"
+        else
+          echo "scan-status=clean" >> $GITHUB_OUTPUT
+          STATUS="clean"
+        fi
+        
+        # Clean up
+        rm -f "$OUTPUT_FILE"
+        
+        echo ""
+        echo "📊 Scan Results:"
+        echo "   Total packages scanned: $TOTAL_SCANNED"
+        echo "   Malware detected: $MALWARE_COUNT"
+        echo "   Vulnerabilities detected: $VULN_COUNT"
+        echo "   Status: $STATUS"
+        echo ""
+        
+        # Determine exit code based on settings
+        EXIT_CODE=0
+        
+        if [ "$MALWARE_COUNT" -gt 0 ] && [ "${{ inputs.fail-on-malware }}" = "true" ]; then
+          echo "❌ Malware detected - failing workflow"
+          EXIT_CODE=1
+        elif [ "$VULN_COUNT" -gt 0 ] && [ "${{ inputs.fail-on-vulnerability }}" = "true" ]; then
+          echo "⚠️  Vulnerabilities detected - failing workflow"
+          EXIT_CODE=1
+        elif [ "$STATUS" = "clean" ]; then
+          echo "✅ No security issues detected"
+        fi
+        
+        exit $EXIT_CODE
+

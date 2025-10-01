@@ -1,0 +1,268 @@
+name: 'RoguePkg Security Scan'
+
+on:
+  # Trigger on push to main branches
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/yarn.lock'
+  
+  # Trigger on pull requests
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/yarn.lock'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      scan-type:
+        description: 'Type of scan to run'
+        required: true
+        type: choice
+        default: 'malware-only'
+        options:
+          - malware-only
+          - full-scan
+      scan-path:
+        description: 'Path to scan (directory or file)'
+        required: false
+        default: '.'
+  
+  # Scheduled scan - runs every Monday at 9 AM UTC
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  security-scan:
+    name: 'Scan Dependencies'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Determine scan configuration
+        id: config
+        run: |
+          # Determine scan type based on trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SCAN_TYPE="${{ github.event.inputs.scan-type }}"
+            SCAN_PATH="${{ github.event.inputs.scan-path }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            SCAN_TYPE="full-scan"
+            SCAN_PATH="."
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            SCAN_TYPE="malware-only"
+            SCAN_PATH="."
+          else
+            SCAN_TYPE="malware-only"
+            SCAN_PATH="."
+          fi
+          
+          # Set malware-only flag
+          if [[ "$SCAN_TYPE" == "malware-only" ]]; then
+            echo "malware-only=true" >> $GITHUB_OUTPUT
+            echo "fail-on-vuln=false" >> $GITHUB_OUTPUT
+            echo "scan-name=Malware Detection" >> $GITHUB_OUTPUT
+          else
+            echo "malware-only=false" >> $GITHUB_OUTPUT
+            echo "fail-on-vuln=true" >> $GITHUB_OUTPUT
+            echo "scan-name=Full Vulnerability Scan" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "scan-path=$SCAN_PATH" >> $GITHUB_OUTPUT
+          
+          echo "🔍 Scan Configuration:"
+          echo "  Type: $SCAN_TYPE"
+          echo "  Path: $SCAN_PATH"
+          echo "  Trigger: ${{ github.event_name }}"
+      
+      - name: Run RoguePkg Scanner
+        id: scan
+        uses: radioactivetobi/roguepkg@v1  # Or use ./ for local testing
+        with:
+          scan-path: ${{ steps.config.outputs.scan-path }}
+          malware-only: ${{ steps.config.outputs.malware-only }}
+          fail-on-malware: 'true'
+          fail-on-vulnerability: ${{ steps.config.outputs.fail-on-vuln }}
+        continue-on-error: true
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const malwareCount = parseInt('${{ steps.scan.outputs.malware-found }}') || 0;
+            const vulnCount = parseInt('${{ steps.scan.outputs.vulnerabilities-found }}') || 0;
+            const totalScanned = '${{ steps.scan.outputs.total-scanned }}';
+            const status = '${{ steps.scan.outputs.scan-status }}';
+            
+            let emoji = '✅';
+            let statusText = 'Clean';
+            let severity = '🟢 LOW';
+            let message = 'No security issues detected in your dependencies.';
+            
+            if (malwareCount > 0) {
+              emoji = '🚨';
+              statusText = 'CRITICAL - Malware Detected';
+              severity = '🔴 CRITICAL';
+              message = `**MALWARE DETECTED** in ${malwareCount} package(s)! Immediate action required.`;
+            } else if (vulnCount > 0) {
+              emoji = '⚠️';
+              statusText = 'Vulnerabilities Found';
+              severity = '🟡 MEDIUM';
+              message = `Found ${vulnCount} vulnerable package(s). Review and update recommended.`;
+            }
+            
+            const comment = `## ${emoji} Security Scan Results
+            
+            **Severity:** ${severity}  
+            **Status:** ${statusText}
+            
+            ### 📊 Summary
+            
+            | Metric | Count |
+            |--------|-------|
+            | Total Packages | ${totalScanned} |
+            | 🦠 Malware | ${malwareCount} |
+            | ⚠️  Vulnerabilities | ${vulnCount} |
+            
+            ${message}
+            
+            ${malwareCount > 0 ? '### 🚨 Action Required\n\n1. Review the workflow logs for malicious package details\n2. Remove affected packages immediately\n3. Do NOT merge this PR until resolved\n\n' : ''}
+            ${vulnCount > 0 && malwareCount === 0 ? '### 📋 Recommendations\n\n1. Review vulnerability details in workflow logs\n2. Update packages to patched versions\n3. Re-run scan after updates\n\n' : ''}
+            ---
+            <sub>Scanned by [RoguePkg](https://github.com/radioactivetobi/roguepkg) • Powered by [OSV.dev](https://osv.dev)</sub>`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Create Issue (Scheduled/Manual Scans)
+        if: |
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          steps.scan.outputs.malware-found > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const malwareCount = '${{ steps.scan.outputs.malware-found }}';
+            const vulnCount = '${{ steps.scan.outputs.vulnerabilities-found }}';
+            const totalScanned = '${{ steps.scan.outputs.total-scanned }}';
+            const scanType = '${{ steps.config.outputs.scan-name }}';
+            const triggerType = '${{ github.event_name }}' === 'schedule' ? 'Scheduled' : 'Manual';
+            
+            const issueBody = `## 🚨 Security Alert: Malware Detected
+            
+            A ${triggerType.toLowerCase()} security scan has detected malware in project dependencies!
+            
+            ### 📊 Scan Results
+            
+            - **Scan Type:** ${scanType}
+            - **Malware Packages:** ${malwareCount}
+            - **Vulnerable Packages:** ${vulnCount}
+            - **Total Packages Scanned:** ${totalScanned}
+            - **Scan Date:** ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} UTC
+            - **Triggered By:** ${triggerType} scan
+            
+            ### ⚡ Immediate Actions Required
+            
+            1. **DO NOT DEPLOY** until this is resolved
+            2. Review the [workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details
+            3. Identify all malicious packages
+            4. Remove or replace affected dependencies
+            5. Run a new security scan to verify
+            6. Investigate how malicious packages were introduced
+            
+            ### 🔍 Investigation Steps
+            
+            1. Check \`package.json\` and \`package-lock.json\` for suspicious packages
+            2. Review recent dependency updates
+            3. Verify package sources and maintainers
+            4. Update to verified safe versions
+            
+            ### 📚 Resources
+            
+            - [Workflow Run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            - [RoguePkg Documentation](https://github.com/radioactivetobi/roguepkg)
+            - [OSV.dev Vulnerability Database](https://osv.dev)
+            - [npm Security Best Practices](https://docs.npmjs.com/security-best-practices)
+            
+            ---
+            
+            **Priority:** 🔴 CRITICAL  
+            **Auto-generated by:** RoguePkg Security Scanner`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Security Alert: Malware in Dependencies - ${new Date().toISOString().split('T')[0]}`,
+              body: issueBody,
+              labels: ['security', 'malware', 'critical', 'dependencies']
+            });
+      
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "# 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Type:** ${{ steps.config.outputs.scan-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered By:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Path:** ${{ steps.config.outputs.scan-path }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Packages | ${{ steps.scan.outputs.total-scanned }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦠 Malware | ${{ steps.scan.outputs.malware-found }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚠️  Vulnerabilities | ${{ steps.scan.outputs.vulnerabilities-found }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ steps.scan.outputs.scan-status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.scan.outputs.malware-found }}" -gt 0 ]; then
+            echo "## 🚨 Malware Detected!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ steps.scan.outputs.malware-found }}** package(s) contain malware. Review the logs above for details." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.scan.outputs.vulnerabilities-found }}" -gt 0 ]; then
+            echo "## ⚠️ Vulnerabilities Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ steps.scan.outputs.vulnerabilities-found }}** vulnerable package(s) detected. Consider updating." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ All Clear!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No security issues detected in scanned dependencies." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail workflow if critical issues found
+        if: |
+          steps.scan.outputs.malware-found > 0 ||
+          (steps.config.outputs.fail-on-vuln == 'true' && steps.scan.outputs.vulnerabilities-found > 0)
+        run: |
+          echo "❌ Security scan failed due to critical issues"
+          exit 1
+

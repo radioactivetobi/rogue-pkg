@@ -1,0 +1,14 @@
+{
+  "name": "test-project-with-malware",
+  "version": "1.0.0",
+  "description": "Test project containing known compromised packages",
+  "dependencies": {
+    "@ctrl/tinycolor": "4.1.2",
+    "express": "4.19.2",
+    "lodash": "4.17.21"
+  },
+  "devDependencies": {
+    "webpack": "5.90.0"
+  }
+}
+
