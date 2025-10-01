@@ -30,15 +30,19 @@ inputs:
 outputs:
   malware-found:
     description: 'Number of packages with malware detected'
+    value: ${{ steps.scan.outputs.malware-found }}
   
   vulnerabilities-found:
     description: 'Number of packages with vulnerabilities (excluding malware)'
+    value: ${{ steps.scan.outputs.vulnerabilities-found }}
   
   total-scanned:
     description: 'Total number of packages scanned'
+    value: ${{ steps.scan.outputs.total-scanned }}
   
   scan-status:
     description: 'Overall scan status: clean, malware-detected, or vulnerabilities-detected'
+    value: ${{ steps.scan.outputs.scan-status }}
 
 runs:
   using: 'composite'
