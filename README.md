@@ -9,6 +9,8 @@ Detect malicious npm packages and vulnerabilities in your JavaScript/TypeScript 
 
 **Coming Soon:** PyPI (Python), Maven (Java), and more ecosystem support!
 
+**NEW:** 💬 **MCP Server** - Integrate with AI assistants (Claude, Cursor, Cline) for chat-based security scanning!
+
 ## 🚀 Features
 
 - 🦠 **Malware Detection** - Identify compromised npm packages
@@ -18,8 +20,29 @@ Detect malicious npm packages and vulnerabilities in your JavaScript/TypeScript 
 - 🔍 **Comprehensive** - Aggregates data from GitHub, npm, and more
 - 🤖 **GitHub Action** - Easy CI/CD integration
 - 📊 **Detailed Reports** - With references, hashes, and remediation info
+- 💬 **MCP Integration** - Use via AI assistants for interactive security scanning
 
 ## 📦 Quick Start
+
+### As an MCP Server (NEW! 🌟)
+
+Use RoguePkg interactively via AI assistants like Claude Desktop, Cursor, or Cline:
+
+```bash
+# Install dependencies
+cd mcp
+pip install -r requirements.txt
+
+# Configure in your AI assistant's MCP settings
+# See mcp/docs/SETUP.md for detailed instructions
+```
+
+**Chat Examples:**
+- "Check if lodash@4.17.21 has any malware"
+- "Scan the facebook/react repository for vulnerabilities"
+- "Check all repositories in my-org for malicious packages"
+
+📚 **[MCP Documentation](mcp/docs/README.md)** | **[Quick Start](mcp/docs/QUICKSTART.md)** | **[Setup Guide](mcp/docs/SETUP.md)** | **[Examples](mcp/examples/usage_examples.md)**
 
 ### As a GitHub Action (Recommended)
 

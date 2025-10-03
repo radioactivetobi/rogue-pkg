@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "roguepkg": {
+      "command": "python",
+      "args": ["mcp/mcp_server.py"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+

@@ -1,0 +1,8 @@
+# RoguePkg MCP Server Requirements
+requests>=2.31.0
+
+# Optional development dependencies
+# pytest>=7.0
+# black>=23.0
+# mypy>=1.0
+
