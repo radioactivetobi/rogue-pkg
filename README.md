@@ -1,4 +1,4 @@
-# 🛡️ RoguePkg - Dependency Malware & Vulnerability Scanner
+# RoguePkg - Software Supply Chain Compromise Detection
 
 [![GitHub Action](https://img.shields.io/badge/GitHub-Action-blue?logo=github-actions)](https://github.com/marketplace/actions/roguepkg-malware-vulnerability-scanner)
 [![OSV.dev](https://img.shields.io/badge/OSV.dev-Powered-green)](https://osv.dev)
@@ -13,14 +13,13 @@ Detect malicious npm packages and vulnerabilities in your JavaScript/TypeScript 
 
 ## 🚀 Features
 
-- 🦠 **Malware Detection** - Identify compromised npm packages
-- ⚠️  **Vulnerability Scanning** - Find CVEs and security issues
-- 🆓 **Completely Free** - No API keys or registration required
-- ⚡ **Fast** - Batch scanning for multiple packages
-- 🔍 **Comprehensive** - Aggregates data from GitHub, npm, and more
-- 🤖 **GitHub Action** - Easy CI/CD integration
-- 📊 **Detailed Reports** - With references, hashes, and remediation info
-- 💬 **MCP Integration** - Use via AI assistants for interactive security scanning
+-  **Malware Detection** - Identify compromised npm packages
+-  **Vulnerability Scanning** - Find CVEs and security issues
+-  **Fast** - Batch scanning for multiple packages
+-  **Comprehensive** - Aggregates data from GitHub, npm, and more
+-  **GitHub Action** - Easy CI/CD integration
+-  **Detailed Reports** - With references, hashes, and remediation info
+-  **MCP Integration** - Use via AI assistants for interactive security scanning
 
 ## 📦 Quick Start
 
@@ -38,9 +37,9 @@ pip install -r requirements.txt
 ```
 
 **Chat Examples:**
-- "Check if lodash@4.17.21 has any malware"
-- "Scan the facebook/react repository for vulnerabilities"
+- "is lodash@4.17.21 safe to use in my software project"
 - "Check all repositories in my-org for malicious packages"
+- "Check my public github project radioactivetobi/roguepkg for malicious dependecies"
 
 📚 **[MCP Documentation](mcp/docs/README.md)** | **[Quick Start](mcp/docs/QUICKSTART.md)** | **[Setup Guide](mcp/docs/SETUP.md)** | **[Examples](mcp/examples/usage_examples.md)**
 
@@ -89,7 +88,7 @@ python roguepkg.py --scan-dir . --malware-only
 python roguepkg.py --file package.json --batch
 ```
 
-## 🎯 GitHub Action Usage
+## GitHub Action Usage
 
 ### Basic Malware Detection (PR Check)
 
@@ -204,7 +203,7 @@ jobs:
           malware-only: 'true'
 ```
 
-## ⚙️ Action Inputs
+##  Action Inputs
 
 | Input | Description | Default | Required |
 |-------|-------------|---------|----------|
@@ -213,7 +212,7 @@ jobs:
 | `fail-on-malware` | Fail workflow if malware detected | `true` | No |
 | `fail-on-vulnerability` | Fail on any vulnerability | `false` | No |
 
-## 📤 Action Outputs
+##  Action Outputs
 
 | Output | Description |
 |--------|-------------|
@@ -236,11 +235,11 @@ jobs:
     echo "Status: ${{ steps.scan.outputs.scan-status }}"
 ```
 
-## 📋 Example Workflows
+##  Example Workflows
 
 We provide several ready-to-use workflow templates in `.github/workflows/`:
 
-1. **`roguepkg-all.yml`** ⭐ - **Recommended!** Comprehensive workflow with:
+1. **`roguepkg-all.yml`**  - **Recommended!** Comprehensive workflow with:
    - ✅ Push and pull request triggers
    - ✅ Manual workflow dispatch with options
    - ✅ Scheduled weekly scans
@@ -254,7 +253,7 @@ We provide several ready-to-use workflow templates in `.github/workflows/`:
 
 Copy any of these to your repository's `.github/workflows/` folder.
 
-## 🔧 Command-Line Usage
+##  Command-Line Usage
 
 ### Scan a Single Package
 
@@ -368,7 +367,7 @@ if [ $? -ne 0 ]; then
 fi
 ```
 
-## 🔮 Future Roadmap
+##  Future Roadmap
 
 - 🐍 **PyPI Support** - Scan Python packages for vulnerabilities
 - ☕ **Maven Support** - Scan Java dependencies
@@ -376,14 +375,14 @@ fi
 - 🦀 **Cargo Support** - Scan Rust crates
 - 💎 **RubyGems Support** - Scan Ruby gems
 
-## 📄 Supported File Formats
+##  Supported File Formats
 
 - ✅ `package.json` - Direct dependencies
 - ✅ `package-lock.json` - All dependencies (npm v1, v2, v3)
 - ✅ `yarn.lock` - All dependencies (Yarn v1)
 - 🔍 Auto-detection with `--scan-dir`
 
-## 🧪 Testing
+## Testing
 
 Test with known malicious packages (included in `test_files/`):
 
@@ -395,7 +394,7 @@ python roguepkg.py --file test_files/package.json --batch --malware-only
 python roguepkg.py --scan-dir test_files --malware-only
 ```
 
-⚠️ **WARNING**: Never run `npm install` in the test_files directory!
+**WARNING**: Never run `npm install` in the test_files directory!
 
 ## 🤝 Contributing
 
@@ -407,25 +406,25 @@ Contributions welcome! Please:
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📚 Resources
+## Resources
 
 - [OSV.dev Documentation](https://osv.dev/docs/)
 - [OSV.dev Vulnerability Database](https://osv.dev)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [npm Security Best Practices](https://docs.npmjs.com/security-best-practices)
 
-## 📜 License
+## License
 
 MIT License - See [LICENSE](LICENSE) for details
 
-## 🙏 Credits
+## Credits
 
 - Powered by [OSV.dev](https://osv.dev) (Google & Open Source Community)
 - Created by [@radioactivetobi](https://github.com/radioactivetobi)
 - Uses the free OSV.dev API
 - Malware database from [GitHub Advisory Database](https://github.com/advisories)
 
-## ⭐ Support
+## Support
 
 If this action helps secure your project, please:
 - ⭐ Star this repository at [github.com/radioactivetobi/roguepkg](https://github.com/radioactivetobi/roguepkg)
@@ -439,7 +438,7 @@ If this action helps secure your project, please:
 
 **Stay secure! 🛡️**
 
-Made with ❤️ by [@radioactivetobi](https://github.com/radioactivetobi)
+Made with ❤️ by [@radioactivetobi](https://github.com/radioactivetobi) - Jesus ❤️'s you
 
 </div>
 

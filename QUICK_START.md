@@ -1,4 +1,4 @@
-# Quick Start Guide - NPM Malware Detection
+# Quick Start Guide - Software Supply Chain Compromise Detection
 
 Choose your preferred method:
 
@@ -157,11 +157,4 @@ python roguepkg.py --scan-dir . --malware-only
 - Code quality problems
 
 (Remove `--malware-only` flag to see all vulnerabilities)
-
-## Need Help?
-
-See full documentation:
-- `README_OSV.md` - Complete guide
-- `test_files/README.md` - Test file details
-- https://osv.dev/docs/ - OSV.dev API docs
 
