@@ -436,9 +436,11 @@ If this action helps secure your project, please:
 
 <div align="center">
 
-**Stay secure! 🛡️**
+**Stay secure! 🛡️** 
 
-Made with ❤️ by [@radioactivetobi](https://github.com/radioactivetobi) - Jesus ❤️'s you
+Jesus ❤️'s you
+
+Made with ❤️ by [@radioactivetobi](https://github.com/radioactivetobi) - 
 
 </div>
 
