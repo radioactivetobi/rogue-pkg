@@ -432,7 +432,7 @@ If this action helps secure your project, please:
 - 💡 Suggest improvements for PyPI, Maven, and other ecosystems
 - 📢 Share with others
 
----
+--
 
 <div align="center">
 
